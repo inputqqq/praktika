@@ -1,122 +1,134 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react';
+import WarehouseCanvas from './components/WarehouseCanvas';
+import ControlPanel from './components/ControlPanel';
+import StatisticsPanel from './components/StatisticsPanel';
+import Legend from './components/Legend';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [warehouse, setWarehouse] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [error, setError] = useState('');
+
+  async function loadState() {
+    try {
+      const response = await fetch('/api/state/');
+      const data = await response.json();
+      setWarehouse(data);
+      setError('');
+    } catch (e) {
+      setError('Не удалось получить состояние склада. Проверь, запущен ли Django backend.');
+    }
+  }
+
+  async function makeStep() {
+    try {
+      const response = await fetch('/api/step/', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      setWarehouse(data);
+      setError('');
+    } catch (e) {
+      setError('Ошибка выполнения шага симуляции.');
+    }
+  }
+
+  async function resetSimulation() {
+    try {
+      const response = await fetch('/api/reset/', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      setWarehouse(data);
+      setIsRunning(false);
+      setError('');
+    } catch (e) {
+      setError('Ошибка сброса симуляции.');
+    }
+  }
+
+  async function applyTreatment(type) {
+    try {
+      const response = await fetch('/api/treatment/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type }),
+      });
+
+      const data = await response.json();
+      setWarehouse(data);
+      setError('');
+    } catch (e) {
+      setError('Ошибка применения средства борьбы.');
+    }
+  }
+
+  useEffect(() => {
+    loadState();
+  }, []);
+
+  useEffect(() => {
+    if (!isRunning || !warehouse || warehouse.isFinished) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      makeStep();
+    }, 800);
+
+    return () => clearInterval(timer);
+  }, [isRunning, warehouse]);
+
+  if (!warehouse) {
+    return (
+      <div className="app">
+        <h1>Имитационная модель работы склада</h1>
+        <p>Загрузка модели...</p>
+        {error && <p className="error">{error}</p>}
+      </div>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div className="app">
+      <header className="app-header">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <h1>Имитационная модель работы склада</h1>
+          <p>Борьба с вредителями и сохранение складских ресурсов</p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="status-badge">
+          День {warehouse.day}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {error && <div className="error">{error}</div>}
+
+      <main className="layout">
+        <section className="main-panel">
+          <WarehouseCanvas warehouse={warehouse} />
+
+          <ControlPanel
+            isRunning={isRunning}
+            isFinished={warehouse.isFinished}
+            onStart={() => setIsRunning(true)}
+            onPause={() => setIsRunning(false)}
+            onStep={makeStep}
+            onReset={resetSimulation}
+            onTreatment={applyTreatment}
+          />
+        </section>
+
+        <aside className="side-panel">
+          <StatisticsPanel warehouse={warehouse} />
+          <Legend />
+        </aside>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
