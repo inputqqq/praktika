@@ -32,6 +32,26 @@ function Legend() {
         <span className="legend-color moth"></span>
         <p>Моль</p>
       </div>
+
+      <div className="legend-item">
+        <span className="legend-color treatment-poison"></span>
+        <p>Зона действия яда</p>
+      </div>
+
+      <div className="legend-item">
+        <span className="legend-color treatment-trap"></span>
+        <p>Зона ловушки</p>
+      </div>
+
+      <div className="legend-item">
+        <span className="legend-color treatment-cleaning"></span>
+        <p>Зона санобработки</p>
+      </div>
+
+      <div className="legend-item">
+        <span className="legend-color destroyed"></span>
+        <p>Метка уничтоженного вредителя</p>
+      </div>
     </div>
   );
 }

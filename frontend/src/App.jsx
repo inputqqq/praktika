@@ -3,11 +3,13 @@ import WarehouseCanvas from './components/WarehouseCanvas';
 import ControlPanel from './components/ControlPanel';
 import StatisticsPanel from './components/StatisticsPanel';
 import Legend from './components/Legend';
+import SelectedObjectPanel from './components/SelectedObjectPanel';
 import './App.css';
 
 function App() {
   const [warehouse, setWarehouse] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [selectedObjectId, setSelectedObjectId] = useState(null);
   const [error, setError] = useState('');
 
   async function loadState() {
@@ -41,6 +43,7 @@ function App() {
       });
       const data = await response.json();
       setWarehouse(data);
+      setSelectedObjectId(null);
       setIsRunning(false);
       setError('');
     } catch (e) {
@@ -64,6 +67,21 @@ function App() {
     } catch (e) {
       setError('Ошибка применения средства борьбы.');
     }
+  }
+
+  function findSelectedObject() {
+    if (!warehouse || !selectedObjectId) {
+      return null;
+    }
+
+    const allObjects = [
+      ...warehouse.resources,
+      ...warehouse.pests,
+      ...(warehouse.treatmentZones || []),
+      ...(warehouse.destroyedPestMarkers || []),
+    ];
+
+    return allObjects.find((object) => object.id === selectedObjectId) || null;
   }
 
   useEffect(() => {
@@ -109,7 +127,11 @@ function App() {
 
       <main className="layout">
         <section className="main-panel">
-          <WarehouseCanvas warehouse={warehouse} />
+          <WarehouseCanvas
+            warehouse={warehouse}
+            selectedObjectId={selectedObjectId}
+            onSelectObject={setSelectedObjectId}
+          />
 
           <ControlPanel
             isRunning={isRunning}
@@ -124,6 +146,7 @@ function App() {
 
         <aside className="side-panel">
           <StatisticsPanel warehouse={warehouse} />
+          <SelectedObjectPanel selectedObject={findSelectedObject()} />
           <Legend />
         </aside>
       </main>

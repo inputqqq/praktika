@@ -44,6 +44,14 @@ function StatisticsPanel({ warehouse }) {
         <p>Моль: {pests.moth}</p>
         <p>Уничтожено всего: {warehouse.stats.destroyedPests}</p>
       </div>
+
+      <h3>Происшествия</h3>
+
+      <div className="list">
+        <p>Хищения: {warehouse.stats.thefts}</p>
+        <p>Затопления: {warehouse.stats.floods}</p>
+        <p>Пожары: {warehouse.stats.fires}</p>
+      </div>
     </div>
   );
 }

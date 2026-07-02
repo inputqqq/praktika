@@ -1,3 +1,4 @@
+import math
 import random
 
 
@@ -9,7 +10,13 @@ class Cell:
 
 
 class Resource:
+    next_id = 1
+
     def __init__(self, resource_type, x, y, amount, price):
+        self.id = f"R-{Resource.next_id}"
+        Resource.next_id += 1
+
+        self.object_type = "resource"
         self.type = resource_type
         self.x = x
         self.y = y
@@ -18,13 +25,21 @@ class Resource:
         self.damage = 0
 
     def apply_damage(self, value):
+        if self.damage >= 100:
+            return
+
         self.damage = min(100, self.damage + value)
+
+    def is_destroyed(self):
+        return self.damage >= 100 or self.amount <= 0
 
     def current_value(self):
         return round(self.price * self.amount * (1 - self.damage / 100), 2)
 
     def to_dict(self):
         return {
+            "id": self.id,
+            "objectType": self.object_type,
             "type": self.type,
             "x": self.x,
             "y": self.y,
@@ -32,10 +47,13 @@ class Resource:
             "price": self.price,
             "damage": self.damage,
             "value": self.current_value(),
+            "isDestroyed": self.is_destroyed(),
         }
 
 
 class Pest:
+    next_id = 1
+
     PEST_RULES = {
         "rat": {
             "name": "Крыса",
@@ -58,6 +76,10 @@ class Pest:
     }
 
     def __init__(self, pest_type, x, y):
+        self.id = f"P-{Pest.next_id}"
+        Pest.next_id += 1
+
+        self.object_type = "pest"
         self.type = pest_type
         self.x = x
         self.y = y
@@ -76,9 +98,14 @@ class Pest:
 
     def damage_resource(self, resources):
         for resource in resources:
-            distance = abs(resource.x - self.x) + abs(resource.y - self.y)
+            if resource.is_destroyed():
+                continue
 
-            if distance <= 1 and resource.type in self.rules["targets"]:
+            dx = resource.x - self.x
+            dy = resource.y - self.y
+            distance = math.sqrt(dx * dx + dy * dy)
+
+            if distance <= 1.5 and resource.type in self.rules["targets"]:
                 resource.apply_damage(self.rules["damage_power"])
                 return True
 
@@ -89,10 +116,15 @@ class Pest:
 
     def to_dict(self):
         return {
+            "id": self.id,
+            "objectType": self.object_type,
             "type": self.type,
             "name": self.rules["name"],
             "x": self.x,
             "y": self.y,
+            "targets": self.rules["targets"],
+            "damagePower": self.rules["damage_power"],
+            "reproductionChance": self.rules["reproduction_chance"],
         }
 
 
@@ -108,7 +140,7 @@ class Treatment:
             "name": "Ловушка",
             "cost": 100,
             "radius": 1,
-            "efficiency": 0.8,
+            "efficiency": 0.80,
         },
         "cleaning": {
             "name": "Санобработка",
@@ -129,20 +161,93 @@ class Treatment:
         }
 
 
+class TreatmentZone:
+    next_id = 1
+
+    def __init__(self, treatment_type, x, y, radius, lifetime=1):
+        self.id = f"Z-{TreatmentZone.next_id}"
+        TreatmentZone.next_id += 1
+
+        self.object_type = "treatmentZone"
+        self.type = treatment_type
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.lifetime = lifetime
+
+    def step(self):
+        self.lifetime -= 1
+
+    def is_active(self):
+        return self.lifetime > 0
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "objectType": self.object_type,
+            "type": self.type,
+            "x": self.x,
+            "y": self.y,
+            "radius": self.radius,
+            "lifetime": self.lifetime,
+        }
+
+
+class DestroyedPestMarker:
+    next_id = 1
+
+    def __init__(self, x, y, pest_type, lifetime=4):
+        self.id = f"D-{DestroyedPestMarker.next_id}"
+        DestroyedPestMarker.next_id += 1
+
+        self.object_type = "destroyedPest"
+        self.x = x
+        self.y = y
+        self.pest_type = pest_type
+        self.lifetime = lifetime
+
+    def step(self):
+        self.lifetime -= 1
+
+    def is_active(self):
+        return self.lifetime > 0
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "objectType": self.object_type,
+            "x": self.x,
+            "y": self.y,
+            "pestType": self.pest_type,
+            "lifetime": self.lifetime,
+        }
+
+
 class SimulationStats:
     def __init__(self):
         self.total_damage_loss = 0
         self.destroyed_pests = 0
+        self.thefts = 0
+        self.floods = 0
+        self.fires = 0
 
     def to_dict(self):
         return {
             "totalDamageLoss": round(self.total_damage_loss, 2),
             "destroyedPests": self.destroyed_pests,
+            "thefts": self.thefts,
+            "floods": self.floods,
+            "fires": self.fires,
         }
 
 
 class Warehouse:
     def __init__(self, width=20, height=14):
+        Resource.next_id = 1
+        Pest.next_id = 1
+        TreatmentZone.next_id = 1
+        DestroyedPestMarker.next_id = 1
+
         self.width = width
         self.height = height
         self.day = 0
@@ -154,6 +259,8 @@ class Warehouse:
         self.cells = []
         self.resources = []
         self.pests = []
+        self.treatment_zones = []
+        self.destroyed_pest_markers = []
         self.stats = SimulationStats()
 
         self.init_world()
@@ -169,11 +276,9 @@ class Warehouse:
             Resource("food", 3, 3, 10, 80),
             Resource("food", 4, 3, 10, 80),
             Resource("food", 5, 3, 10, 80),
-
             Resource("materials", 12, 4, 8, 120),
             Resource("materials", 13, 4, 8, 120),
             Resource("materials", 14, 4, 8, 120),
-
             Resource("chemistry", 6, 9, 6, 100),
             Resource("chemistry", 7, 9, 6, 100),
             Resource("chemistry", 8, 9, 6, 100),
@@ -185,20 +290,94 @@ class Warehouse:
             Pest("moth", 15, 6),
         ]
 
-    def spawn_random_pest(self):
-        chance = random.random()
+    def random_event(self):
+        event_roll = random.random()
 
-        if chance < 0.20:
+        if event_roll < 0.03:
+            self.fire_event()
+        elif event_roll < 0.08:
+            self.flood_event()
+        elif event_roll < 0.15:
+            self.theft_event()
+
+    def theft_event(self):
+        available_resources = [resource for resource in self.resources if resource.amount > 0]
+
+        if not available_resources:
+            return
+
+        resource = random.choice(available_resources)
+        stolen_amount = min(resource.amount, random.randint(1, 3))
+        resource.amount -= stolen_amount
+
+        self.stats.thefts += 1
+        self.message = f"Произошло хищение: украдено {stolen_amount} ед. товара"
+
+    def flood_event(self):
+        damaged_resources = [
+            resource for resource in self.resources
+            if resource.type in ["materials", "chemistry"] and not resource.is_destroyed()
+        ]
+
+        if not damaged_resources:
+            return
+
+        for resource in damaged_resources:
+            resource.apply_damage(random.randint(10, 22))
+
+        self.stats.floods += 1
+        self.message = "На складе произошло затопление: повреждены материалы и бытовая химия"
+
+    def fire_event(self):
+        available_resources = [resource for resource in self.resources if not resource.is_destroyed()]
+
+        if not available_resources:
+            return
+
+        center_resource = random.choice(available_resources)
+        center_x = center_resource.x
+        center_y = center_resource.y
+
+        for resource in available_resources:
+            distance = abs(resource.x - center_x) + abs(resource.y - center_y)
+
+            if distance <= 2:
+                resource.apply_damage(random.randint(20, 35))
+
+        self.stats.fires += 1
+        self.message = "На складе произошло возгорание: часть товаров повреждена"
+
+    def spawn_random_pest(self):
+        if random.random() < 0.20:
             pest_type = random.choice(["rat", "cockroach", "moth"])
             x = random.randint(0, self.width - 1)
             y = random.randint(0, self.height - 1)
+
             self.pests.append(Pest(pest_type, x, y))
             self.message = "На складе появился новый вредитель"
 
     def calculate_damage_loss(self):
         start_value = sum(resource.price * resource.amount for resource in self.resources)
         current_value = sum(resource.current_value() for resource in self.resources)
+
         self.stats.total_damage_loss = start_value - current_value
+
+    def update_temporary_objects(self):
+        for zone in self.treatment_zones:
+            zone.step()
+
+        self.treatment_zones = [
+            zone for zone in self.treatment_zones
+            if zone.is_active()
+        ]
+
+        for marker in self.destroyed_pest_markers:
+            marker.step()
+
+        self.destroyed_pest_markers = [
+            marker for marker in self.destroyed_pest_markers
+            if marker.is_active()
+        ]
 
     def step(self):
         if self.is_finished:
@@ -209,6 +388,8 @@ class Warehouse:
         self.message = "Прошел один день работы склада"
 
         self.spawn_random_pest()
+        self.random_event()
+        self.update_temporary_objects()
 
         new_pests = []
 
@@ -236,8 +417,8 @@ class Warehouse:
 
         self.money -= treatment.data["cost"]
 
-        center_x = self.width // 2
-        center_y = self.height // 2
+        center_x = random.randint(0, self.width - 1)
+        center_y = random.randint(0, self.height - 1)
         radius = treatment.data["radius"]
         efficiency = treatment.data["efficiency"]
 
@@ -245,20 +426,33 @@ class Warehouse:
         destroyed = 0
 
         for pest in self.pests:
-            distance = abs(pest.x - center_x) + abs(pest.y - center_y)
+            dx = pest.x - center_x
+            dy = pest.y - center_y
+            distance = math.sqrt(dx * dx + dy * dy)
 
             if distance <= radius and random.random() < efficiency:
                 destroyed += 1
+                self.destroyed_pest_markers.append(
+                    DestroyedPestMarker(pest.x, pest.y, pest.type)
+                )
             else:
                 survived_pests.append(pest)
 
         self.pests = survived_pests
         self.stats.destroyed_pests += destroyed
 
-        self.message = f"Применено средство: {treatment.data['name']}. Уничтожено вредителей: {destroyed}"
+        self.treatment_zones.append(
+            TreatmentZone(treatment_type, center_x, center_y, radius)
+        )
+
+        self.message = (
+            f"Применено средство: {treatment.data['name']} "
+            f"в точке ({center_x}, {center_y}). "
+            f"Уничтожено вредителей: {destroyed}"
+        )
 
     def check_finish(self):
-        badly_damaged = all(resource.damage >= 90 for resource in self.resources)
+        badly_damaged = self.resources and all(resource.damage >= 90 for resource in self.resources)
 
         if badly_damaged:
             self.is_finished = True
@@ -276,12 +470,15 @@ class Warehouse:
         }
 
         for resource_type in result:
-            filtered = [r for r in self.resources if r.type == resource_type]
+            filtered = [
+                resource for resource in self.resources
+                if resource.type == resource_type
+            ]
 
             if filtered:
-                result[resource_type]["amount"] = sum(r.amount for r in filtered)
+                result[resource_type]["amount"] = sum(resource.amount for resource in filtered)
                 result[resource_type]["avgDamage"] = round(
-                    sum(r.damage for r in filtered) / len(filtered),
+                    sum(resource.damage for resource in filtered) / len(filtered),
                     1
                 )
 
@@ -289,9 +486,9 @@ class Warehouse:
 
     def get_pest_summary(self):
         return {
-            "rat": len([p for p in self.pests if p.type == "rat"]),
-            "cockroach": len([p for p in self.pests if p.type == "cockroach"]),
-            "moth": len([p for p in self.pests if p.type == "moth"]),
+            "rat": len([pest for pest in self.pests if pest.type == "rat"]),
+            "cockroach": len([pest for pest in self.pests if pest.type == "cockroach"]),
+            "moth": len([pest for pest in self.pests if pest.type == "moth"]),
         }
 
     def to_dict(self):
@@ -305,6 +502,11 @@ class Warehouse:
             "message": self.message,
             "resources": [resource.to_dict() for resource in self.resources],
             "pests": [pest.to_dict() for pest in self.pests],
+            "treatmentZones": [zone.to_dict() for zone in self.treatment_zones],
+            "destroyedPestMarkers": [
+                marker.to_dict()
+                for marker in self.destroyed_pest_markers
+            ],
             "resourceSummary": self.get_resource_summary(),
             "pestSummary": self.get_pest_summary(),
             "stats": self.stats.to_dict(),
