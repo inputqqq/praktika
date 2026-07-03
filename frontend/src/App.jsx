@@ -126,30 +126,33 @@ function App() {
       {error && <div className="error">{error}</div>}
 
       <main className="layout">
-        <section className="main-panel">
-          <WarehouseCanvas
-            warehouse={warehouse}
-            selectedObjectId={selectedObjectId}
-            onSelectObject={setSelectedObjectId}
-          />
+  <aside className="left-info-panel">
+    <SelectedObjectPanel selectedObject={findSelectedObject()} />
+  </aside>
 
-          <ControlPanel
-            isRunning={isRunning}
-            isFinished={warehouse.isFinished}
-            onStart={() => setIsRunning(true)}
-            onPause={() => setIsRunning(false)}
-            onStep={makeStep}
-            onReset={resetSimulation}
-            onTreatment={applyTreatment}
-          />
-        </section>
+  <section className="main-panel">
+    <WarehouseCanvas
+      warehouse={warehouse}
+      selectedObjectId={selectedObjectId}
+      onSelectObject={setSelectedObjectId}
+    />
 
-        <aside className="side-panel">
-          <StatisticsPanel warehouse={warehouse} />
-          <SelectedObjectPanel selectedObject={findSelectedObject()} />
-          <Legend />
-        </aside>
-      </main>
+    <ControlPanel
+      isRunning={isRunning}
+      isFinished={warehouse.isFinished}
+      onStart={() => setIsRunning(true)}
+      onPause={() => setIsRunning(false)}
+      onStep={makeStep}
+      onReset={resetSimulation}
+      onTreatment={applyTreatment}
+    />
+  </section>
+
+  <aside className="side-panel">
+    <StatisticsPanel warehouse={warehouse} />
+    <Legend />
+  </aside>
+</main>
     </div>
   );
 }

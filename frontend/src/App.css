@@ -50,7 +50,15 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 260px minmax(640px, 1fr) 330px;
+  gap: 18px;
+  align-items: start;
+}
+.left-info-panel {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
@@ -69,8 +77,9 @@ body {
   background: rgba(28, 25, 23, 0.9);
   border: 1px solid #57534e;
   border-radius: 20px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  text-align: center;
 }
 
 .canvas-card h2,
@@ -79,9 +88,10 @@ body {
 .legend h2,
 .selected-panel h2 {
   margin-top: 0;
+  margin-bottom: 12px;
   color: #fbbf24;
+  font-size: 20px;
 }
-
 .warehouse-canvas {
   display: block;
   max-width: 100%;
@@ -162,6 +172,7 @@ button:disabled {
 .selected-panel p {
   margin: 8px 0;
   color: #e7e5e4;
+  line-height: 1.35;
 }
 
 .muted {
@@ -261,8 +272,12 @@ button:disabled {
   margin-bottom: 16px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1250px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .left-info-panel {
+    position: static;
   }
 }

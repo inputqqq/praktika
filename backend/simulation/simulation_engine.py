@@ -196,7 +196,7 @@ class TreatmentZone:
 class DestroyedPestMarker:
     next_id = 1
 
-    def __init__(self, x, y, pest_type, lifetime=4):
+    def __init__(self, x, y, pest_type, lifetime=1):
         self.id = f"D-{DestroyedPestMarker.next_id}"
         DestroyedPestMarker.next_id += 1
 
@@ -346,13 +346,34 @@ class Warehouse:
 
         self.stats.fires += 1
         self.message = "На складе произошло возгорание: часть товаров повреждена"
+    
+    def is_cell_occupied_by_pest(self, x, y, ignored_pest=None):
+        for pest in self.pests:
+            if ignored_pest is not None and pest.id == ignored_pest.id:
+                continue
+
+            if pest.x == x and pest.y == y:
+                return True
+
+        return False
 
     def spawn_random_pest(self):
-        if random.random() < 0.20:
-            pest_type = random.choice(["rat", "cockroach", "moth"])
-            x = random.randint(0, self.width - 1)
-            y = random.randint(0, self.height - 1)
+        chance = random.random()
 
+        if chance < 0.20:
+            pest_type = random.choice(["rat", "cockroach", "moth"])
+
+            free_cells = []
+
+            for y in range(self.height):
+                for x in range(self.width):
+                    if not self.is_cell_occupied_by_pest(x, y):
+                        free_cells.append((x, y))
+
+            if not free_cells:
+                return
+
+            x, y = random.choice(free_cells)
             self.pests.append(Pest(pest_type, x, y))
             self.message = "На складе появился новый вредитель"
 
@@ -394,11 +415,38 @@ class Warehouse:
         new_pests = []
 
         for pest in self.pests:
+            old_x = pest.x
+            old_y = pest.y
+
             pest.move(self.width, self.height)
+
+            if self.is_cell_occupied_by_pest(pest.x, pest.y, ignored_pest=pest):
+                pest.x = old_x
+                pest.y = old_y
+
             pest.damage_resource(self.resources)
 
             if pest.can_reproduce() and len(self.pests) + len(new_pests) < 40:
-                new_pests.append(Pest(pest.type, pest.x, pest.y))
+                free_neighbors = []
+
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        if dx == 0 and dy == 0:
+                            continue
+
+                        new_x = pest.x + dx
+                        new_y = pest.y + dy
+
+                        if 0 <= new_x < self.width and 0 <= new_y < self.height:
+                            occupied_now = self.is_cell_occupied_by_pest(new_x, new_y)
+                            occupied_new = any(p.x == new_x and p.y == new_y for p in new_pests)
+
+                            if not occupied_now and not occupied_new:
+                                free_neighbors.append((new_x, new_y))
+
+                if free_neighbors:
+                    child_x, child_y = random.choice(free_neighbors)
+                    new_pests.append(Pest(pest.type, child_x, child_y))
 
         self.pests.extend(new_pests)
 

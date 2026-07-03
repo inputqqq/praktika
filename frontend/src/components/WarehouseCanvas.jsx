@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const CELL_SIZE = 34;
+const CELL_SIZE = 25;
 
 function getResourceColor(type) {
   if (type === 'food') return '#84cc16';
@@ -177,7 +177,6 @@ function WarehouseCanvas({ warehouse, selectedObjectId, onSelectObject }) {
         ctx.fillStyle = '#fecaca';
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`${marker.lifetime} дн.`, centerX, centerY + 20);
       });
     }
 
